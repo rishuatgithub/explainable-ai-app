@@ -1,0 +1,9 @@
+pandas
+streamlit
+scikit-learn
+watchdog
+shap
+xgboost
+plotly
+eli5
+matplotlib
