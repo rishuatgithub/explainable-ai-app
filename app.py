@@ -2,6 +2,8 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 
+import matplotlib.pyplot as plt
+
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import confusion_matrix, classification_report
 from sklearn.metrics import accuracy_score
@@ -13,8 +15,11 @@ from xgboost import XGBClassifier
 #import xgboost as xgb
 
 import shap
+import eli5
+from eli5.sklearn import PermutationImportance
 
 st.set_page_config(layout="wide", page_title='Explaining Heart Diseases ML Model')
+st.set_option('deprecation.showPyplotGlobalUse', False)
 
 header = st.beta_container()
 dataset = st.beta_container()
@@ -57,20 +62,22 @@ with dataset:
     
     dataset_col1.write(df.head())
     with dataset_col2.beta_expander('Features Description'):
-        st.markdown("* **age**: The Age of the person")
-        st.markdown("* **sex**: The sex of the person (Male/Female)")
-        st.markdown("* **cp**: The chest pain experienced (Value 1: typical angina, Value 2: atypical angina, Value 3: non-anginal pain, Value 4: asymptomatic)")
-        st.markdown("* **thresbps**: The person's resting blood pressure (mm Hg on admission to the hospital)")
-        st.markdown("* **chol**: The person's cholesterol measurement in mg/dl")
-        st.markdown("* **fbs**: The person's fasting blood sugar (> 120 mg/dl, 1 = true; 0 = false)")
-        st.markdown("* **restecg**: Resting electrocardiographic measurement (0 = normal, 1 = having ST-T wave abnormality, 2 = showing probable or definite left ventricular hypertrophy by Estes' criteria)")
-        st.markdown("* **thalch**: The person's maximum heart rate achieved.")
-        st.markdown("* **exang**: Exercise induced angina (1 = yes; 0 = no)")
-        st.markdown("* **oldpeak**: ST depression induced by exercise relative to rest ('ST' relates to positions on the ECG plot.)")
-        st.markdown("* **slope**: The slope of the peak exercise ST segment (Value 1: upsloping, Value 2: flat, Value 3: downsloping) ")
-        st.markdown("* **ca**: Number of major vessels (0-3) colored by flourosopy ")
-        st.markdown("* **thal**: A blood disorder called thalassemia (3 = normal; 6 = fixed defect; 7 = reversable defect)")
-        st.markdown("* **target**: The final prediction value of either 0 (Not Heart Disease) or 1 (Heart Disease)")
+        st.markdown("""
+            * **age**: The Age of the person
+            * **sex**: The sex of the person (Male/Female)
+            * **cp**: The chest pain experienced (Value 1: typical angina, Value 2: atypical angina, Value 3: non-anginal pain, Value 4: asymptomatic)
+            * **thresbps**: The person's resting blood pressure (mm Hg on admission to the hospital)
+            * **chol**: The person's cholesterol measurement in mg/dl
+            * **fbs**: The person's fasting blood sugar (> 120 mg/dl, 1 = true; 0 = false)
+            * **restecg**: Resting electrocardiographic measurement (0 = normal, 1 = having ST-T wave abnormality, 2 = showing probable or definite left ventricular hypertrophy by Estes' criteria)
+            * **thalch**: The person's maximum heart rate achieved.
+            * **exang**: Exercise induced angina (1 = yes; 0 = no)
+            * **oldpeak**: ST depression induced by exercise relative to rest ('ST' relates to positions on the ECG plot.)
+            * **slope**: The slope of the peak exercise ST segment (Value 1: upsloping, Value 2: flat, Value 3: downsloping) 
+            * **ca**: Number of major vessels (0-3) colored by flourosopy 
+            * **thal**: A blood disorder called thalassemia (3 = normal; 6 = fixed defect; 7 = reversable defect)
+            * **target**: The final prediction value of either 0 (Not Heart Disease) or 1 (Heart Disease)
+        """)
     
     dataset_col2.subheader("Total count of rows: ")
     dataset_col2.write(df['age'].count())
@@ -137,17 +144,37 @@ with model:
     precision_rate = tp / (tp + fp)
     recall_rate = tp / (tp + fn)
     
-    model_col2.markdown("Model Accuracy")
+    model_col2.subheader("Model Accuracy")
     model_col2.write(accuracy_score)
 
-    model_col2.markdown("Model Precision")
+    model_col2.subheader("Model Precision")
     model_col2.write(precision_rate)
 
-    model_col2.markdown("Model Recall")
+    model_col2.subheader("Model Recall")
     model_col2.write(recall_rate)
-
-
 
 
 with explainable:
     st.header("Explaining the Model")
+
+    feature_dict = dict(enumerate(df.drop("target", 1).columns))
+
+    st.subheader("Permutation Importance")
+    
+    #perm = PermutationImportance(model, random_state=1).fit(X_test, y_test)
+    #permutation_imp_chart = eli5.show_weights(perm, feature_names = list(feature_dict.values()))
+    #st.pyplot(permutation_imp_chart)
+
+    
+    
+    st.subheader("Partial Plots")
+
+
+
+    st.subheader("SHAP")
+
+    explainer = shap.TreeExplainer(model)
+    shap_values = explainer.shap_values(X_test)
+    #summary_plot = shap.summary_plot(shap_values, X_test, feature_names = list(feature_dict.values()), plot_type = "bar")
+    summary_plot = shap.summary_plot(shap_values, X_test, feature_names = list(feature_dict.values()))
+    st.pyplot(summary_plot)
