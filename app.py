@@ -127,7 +127,7 @@ with model:
     ## splitting the dataset
     X_train, X_test, y_train, y_test = train_test_split_data(df)
 
-    model_col1, model_col2 = st.beta_columns(2)
+    model_col1, model_col2 = st.beta_columns((1,2))
 
     model_max_depth = model_col1.slider("Max Depth", min_value=3, max_value=10, step=1, value=5)
     model_learning_rate = model_col1.selectbox("Learning Rate", options=[0.001, 0.01, 0.1, 0.3, 0.5], index=3)
