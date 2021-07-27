@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
 import plotly.express as px
+import plotly.graph_objects as go
 
 import matplotlib.pyplot as plt
 
@@ -39,7 +40,7 @@ def train_test_split_data(data):
     X = data.drop("target", 1).values
     y = data["target"].astype("int").values
 
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.20, random_state=32)
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.20, random_state=10)
 
     return X_train, X_test, y_train, y_test
 
@@ -48,12 +49,12 @@ with header:
     st.title("Explaining Heart Diseases ML Model")
     #st.markdown("Author: Rishu Shrivastava")
     st.markdown("Many people say machine learning models are **black boxes**, in the sense that they can make good predictions but you can't understand the logic behind those predictions. This statement is true in the sense that most data scientists don't know how to extract insights from models yet.")
-    st.markdown("This web interface explains the heart prediction data from [Heart Disease UCI](https://archive.ics.uci.edu/ml/datasets/Heart+Disease) dataset using **Explainable AI** technique.")
+    st.markdown("This interactive application explains the presence of heart disease in a person based on [Heart Disease UCI](https://archive.ics.uci.edu/ml/datasets/Heart+Disease) dataset using **Explainable AI** technique.")
 
 
 with dataset:
     
-    st.header("Dataset")
+    st.header("**Dataset**")
     st.markdown("This database contains 76 attributes, but all published experiments refer to using a subset of 14 of them.\nIn particular, the Cleveland database is the only one that has been used by ML researchers to this date.\nThe **target** attribute refers to the presence of heart disease in the person.")
 
     df = read_data()
@@ -82,25 +83,25 @@ with dataset:
     dataset_col2.subheader("Total count of rows: ")
     dataset_col2.write(df['age'].count())
 
-with dataviz:
-    st.header("Visualizing the dataset")
-    st.markdown("Before building the model, let us visualize the above dataset to understand the distribution a little better. ")
+#with dataviz:
+#    st.header("**Visualizing the dataset**")
+#    st.markdown("Before building the model, let us visualize the above dataset to understand the distribution a little better. ")
 
-    features_list = df[['age','sex','cp']].columns
-    selected_feature = st.selectbox('Feature Attributes',features_list)
+#    features_list = df[['age','sex','cp']].columns
+#    selected_feature = st.selectbox('Feature Attributes',features_list)
 
-    dataviz_col1, dataviz_col2 = st.beta_columns(2) 
+#    dataviz_col1, dataviz_col2 = st.beta_columns(2) 
 
-    barviz_df = pd.DataFrame(df[[selected_feature,'target']].value_counts(), columns=['value'])
-    barviz_df.reset_index(level=[selected_feature,'target'], inplace=True)
-    barviz_df['target'] = barviz_df['target'].map({0:'Without Heart Disease', 1:'With Heart Disease'})
+#    barviz_df = pd.DataFrame(df[[selected_feature,'target']].value_counts(), columns=['value'])
+#    barviz_df.reset_index(level=[selected_feature,'target'], inplace=True)
+#    barviz_df['target'] = barviz_df['target'].map({0:'Without Heart Disease', 1:'With Heart Disease'})
 
-    fig = px.bar(barviz_df, y=selected_feature, facet_col="target", barmode="group")
+#    fig = px.bar(barviz_df, y=selected_feature, facet_col="target", barmode="group")
     
-    dataviz_col1.plotly_chart(fig)
+#    dataviz_col1.plotly_chart(fig)
 
 with features: 
-    st.header("Preparing dataset before training")
+    st.subheader("Preparing dataset before training")
     st.markdown("The dataset is having some features with **categorical** dataset. We will apply [dummy encoding](https://pandas.pydata.org/docs/reference/api/pandas.get_dummies.html) to convert the categorical data to binary features.")
     st.markdown("The list of categorical features are: cp, sex, exang, slope, thal, restecg, fbs. ")
 
@@ -118,23 +119,29 @@ with features:
     st.markdown("After applying the dummy encoding scheme, the original dataset now looks like as below. Notice the new encoded features being added.")
     st.write(df.head())
 
-    st.text("Note: There are many feature engineering techniques that could be applied on this dataset. For the purpose of this exercise, we will not deep dive into feature engineering other than small encoding done above.")
+    st.text("""
+        Note: There are many feature engineering techniques that could be applied on this dataset. 
+              For the purpose of this exercise, we will not deep dive into feature engineering other than small encoding done above.""")
 
 with model:
-    st.header("Model Training")
-    st.markdown("We will use **XGBoost classifier** algorithm to train on the dataset based on the selection of parameters.")
+    st.header("**Model Training**")
+    st.markdown("""
+        We will use **XGBoost classifier** algorithm to train on the dataset based on the selection of parameters.
+        The dataset uses 80:20 train-test ratio of data.
+    """)
 
     ## splitting the dataset
     X_train, X_test, y_train, y_test = train_test_split_data(df)
 
-    model_col1, model_col2 = st.beta_columns((1,2))
+    model_col1, model_col2, model_col3 = st.beta_columns((1,1,2))
 
     model_max_depth = model_col1.slider("Max Depth", min_value=3, max_value=10, step=1, value=5)
-    model_learning_rate = model_col1.selectbox("Learning Rate", options=[0.001, 0.01, 0.1, 0.3, 0.5], index=3)
-    model_estimators = model_col1.selectbox("Number of estimators", options=[100, 300, 500], index=0)
+    model_learning_rate = model_col1.selectbox("Learning Rate", options=[0.001, 0.01, 0.1, 0.3, 0.5], index=1)
+    model_estimators = model_col1.selectbox("Number of estimators", options=[100, 300, 400, 500, 700], index=1)
 
     model = XGBClassifier(max_depth=model_max_depth, learning_rate=model_learning_rate, n_estimators= model_estimators, n_jobs=1)
-    model.fit(X_train, y_train)
+    eval_set = [(X_train, y_train), (X_test, y_test)]
+    model.fit(X_train, y_train, eval_metric=['error','logloss'], eval_set=eval_set, verbose=False)
 
     yhat = model.predict(X_test)
     y_proba = model.predict_proba(X_test)[:, 1]
@@ -143,27 +150,71 @@ with model:
     tp,fn,fp,tn = confusion_matrix(y_test, yhat, labels=[1,0]).ravel()
     precision_rate = tp / (tp + fp)
     recall_rate = tp / (tp + fn)
+
+    results = model.evals_result()
+    epochs = len(results['validation_0']['error'])
+    x_axis = range(0, epochs)
     
-    model_col2.subheader("Model Accuracy")
-    model_col2.write(accuracy_score)
+    model_col2.subheader("**Model Accuracy**")
+    model_col2.write(round(accuracy_score*100,2))
+    
 
-    model_col2.subheader("Model Precision")
-    model_col2.write(precision_rate)
+    model_col2.subheader("**Model Precision**")
+    model_col2.write(round(precision_rate*100,2))
 
-    model_col2.subheader("Model Recall")
-    model_col2.write(recall_rate)
+    model_col2.subheader("**Model Recall**")
+    model_col2.write(round(recall_rate*100,2))
+
+    fig = go.Figure()
+
+    fig.add_trace(go.Scatter(x=list(x_axis), y=results['validation_0']['logloss'], name='Train'))
+    fig.add_trace(go.Scatter(x=list(x_axis), y=results['validation_1']['logloss'], name='Test'))
+    fig.update_layout(title='<b>Model Loss</b>',
+                margin=dict(l=1,r=1,b=0), 
+                height=300, 
+                width=500,
+                xaxis_title="Epochs", 
+                yaxis_title="Model Loss")
+
+    model_chart_error_loss = fig
+
+    model_col3.plotly_chart(model_chart_error_loss)
 
 
 with explainable:
-    st.header("Explaining the Model")
+
+    st.header("**Explaining the Model**")
+    st.markdown("""
+        In the above section, XGBoost model predicted some output score based on the heart disease prediction dataset. An accuracy score of approx. 80-84% was predicted based on the validation/test data.
+        However, there are open questions that would easily come to mind:
+
+        1. What features in the data did the model **think are most important**?
+        2. How did each feature in the **data affect a particular prediction**?
+        3. How does each feature **affect** the model's predictions **over a larger dataset**?
+
+        In the field of **Explainable AI**, by definition, [explainability](https://en.wikipedia.org/wiki/Explainable_artificial_intelligence) is considered as "the collection of features of the interpretable domain, that have contributed for a given example to produce a decision (e.g., classification or regression)".
+        If algorithms meet these requirements, they provide a basis for justifying decisions, tracking and thereby verifying them, improving the algorithms, and exploring new facts.
+
+        Based on the above trained model, let us try to answer the above three basic questions.
+        """)
 
     feature_dict = dict(enumerate(df.drop("target", 1).columns))
 
     st.subheader("Permutation Importance")
+
+    pi_col1, pi_col2 = st.beta_columns(2)
+
+    pi_col1.markdown("""
+        ** What are the features that have the biggest impact on the prediction? **
+
+        This concept of finding the feature importance is called Permutation Importance. This technique is fast to calculate and easy to understand. 
+        The feature imporatance is calculated based on the 
+    """)
     
     #perm = PermutationImportance(model, random_state=1).fit(X_test, y_test)
     #permutation_imp_chart = eli5.show_weights(perm, feature_names = list(feature_dict.values()))
     #st.pyplot(permutation_imp_chart)
+    #st.write(permutation_imp_chart)
 
     
     
@@ -173,8 +224,11 @@ with explainable:
 
     st.subheader("SHAP")
 
+    shap_col1, shap_col2 = st.beta_columns((2, 2))
+
+
     explainer = shap.TreeExplainer(model)
     shap_values = explainer.shap_values(X_test)
     #summary_plot = shap.summary_plot(shap_values, X_test, feature_names = list(feature_dict.values()), plot_type = "bar")
     summary_plot = shap.summary_plot(shap_values, X_test, feature_names = list(feature_dict.values()))
-    st.pyplot(summary_plot)
+    shap_col2.pyplot(summary_plot)
