@@ -1,23 +1,23 @@
 import streamlit as st
 import pandas as pd
-import plotly.express as px
+
+import matplotlib.pyplot as plt 
+#import plotly.express as px
 import plotly.graph_objects as go
 
-import matplotlib.pyplot as plt
-
 from sklearn.model_selection import train_test_split
-from sklearn.metrics import confusion_matrix, classification_report
+from sklearn.metrics import confusion_matrix
 from sklearn.metrics import accuracy_score
-from sklearn.metrics import roc_curve, auc
-from sklearn import metrics
-from sklearn import preprocessing
+from sklearn.inspection import plot_partial_dependence
 
 from xgboost import XGBClassifier
-#import xgboost as xgb
 
 import shap
 import eli5
 from eli5.sklearn import PermutationImportance
+
+#from pdpbox import pdp
+#import pdp
 
 st.set_page_config(layout="wide", page_title='Explaining Heart Diseases ML Model')
 st.set_option('deprecation.showPyplotGlobalUse', False)
@@ -40,7 +40,7 @@ def train_test_split_data(data):
     X = data.drop("target", 1).values
     y = data["target"].astype("int").values
 
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.20, random_state=10)
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.15, random_state=32)
 
     return X_train, X_test, y_train, y_test
 
@@ -48,14 +48,21 @@ def train_test_split_data(data):
 with header:
     st.title("Explaining Heart Diseases ML Model")
     #st.markdown("Author: Rishu Shrivastava")
-    st.markdown("Many people say machine learning models are **black boxes**, in the sense that they can make good predictions but you can't understand the logic behind those predictions. This statement is true in the sense that most data scientists don't know how to extract insights from models yet.")
-    st.markdown("This interactive application explains the presence of heart disease in a person based on [Heart Disease UCI](https://archive.ics.uci.edu/ml/datasets/Heart+Disease) dataset using **Explainable AI** technique.")
+    st.markdown("""
+        Many people say machine learning models are **black boxes**, in the sense that they can make good predictions but you can't understand the logic behind those predictions. This statement is true in the sense that most data scientists don't know how to extract insights from models yet.")
+        
+        This interactive application explains the presence of heart disease in a person based on [Heart Disease UCI](https://archive.ics.uci.edu/ml/datasets/Heart+Disease) dataset using **Explainable AI** technique.
+    """)
 
 
 with dataset:
     
     st.header("**Dataset**")
-    st.markdown("This database contains 76 attributes, but all published experiments refer to using a subset of 14 of them.\nIn particular, the Cleveland database is the only one that has been used by ML researchers to this date.\nThe **target** attribute refers to the presence of heart disease in the person.")
+    st.markdown("""
+        This database contains 76 attributes, but all published experiments refer to using a subset of 14 of them.
+        In particular, the Cleveland database is the only one that has been used by ML researchers to this date.
+        The **target** attribute refers to the presence of heart disease in the person.
+    """)
 
     df = read_data()
 
@@ -141,17 +148,17 @@ with model:
 
     model = XGBClassifier(max_depth=model_max_depth, learning_rate=model_learning_rate, n_estimators= model_estimators, n_jobs=1)
     eval_set = [(X_train, y_train), (X_test, y_test)]
-    model.fit(X_train, y_train, eval_metric=['error','logloss'], eval_set=eval_set, verbose=False)
+    model_train = model.fit(X_train, y_train, eval_metric=['error','logloss'], eval_set=eval_set, verbose=False)
 
-    yhat = model.predict(X_test)
-    y_proba = model.predict_proba(X_test)[:, 1]
+    yhat = model_train.predict(X_test)
+    y_proba = model_train.predict_proba(X_test)[:, 1]
 
     accuracy_score = accuracy_score(yhat,y_test)
     tp,fn,fp,tn = confusion_matrix(y_test, yhat, labels=[1,0]).ravel()
     precision_rate = tp / (tp + fp)
     recall_rate = tp / (tp + fn)
 
-    results = model.evals_result()
+    results = model_train.evals_result()
     epochs = len(results['validation_0']['error'])
     x_axis = range(0, epochs)
     
@@ -197,35 +204,63 @@ with explainable:
 
         Based on the above trained model, let us try to answer the above three basic questions.
         """)
-
-    feature_dict = dict(enumerate(df.drop("target", 1).columns))
-
-    st.subheader("Permutation Importance")
+    
+    feature_dict = dict(enumerate(df.drop("target", axis=1).columns))
+    features_list = df.drop('target',axis=1).columns
+    selected_feature = st.selectbox('Feature Attributes',features_list)
+    
+    st.markdown("### **Permutation Importance**")
 
     pi_col1, pi_col2 = st.beta_columns(2)
 
     pi_col1.markdown("""
-        ** What are the features that have the biggest impact on the prediction? **
+        ** _What are the features that have the biggest impact on the prediction?_ **
 
         This concept of finding the feature importance is called Permutation Importance. This technique is fast to calculate and easy to understand. 
-        The feature imporatance is calculated based on the 
+        The feature imporatance is calculated based on the trained model.
+
+        On the 
+
     """)
     
-    #perm = PermutationImportance(model, random_state=1).fit(X_test, y_test)
-    #permutation_imp_chart = eli5.show_weights(perm, feature_names = list(feature_dict.values()))
-    #st.pyplot(permutation_imp_chart)
-    #st.write(permutation_imp_chart)
+    perm = PermutationImportance(model_train, random_state=1).fit(X_test, y_test)
+    permutation_imp_chart = eli5.show_weights(perm, feature_names = list(feature_dict.values())).data 
+    pi_col2.markdown(permutation_imp_chart.replace('\n',''),unsafe_allow_html=True)
 
     
     
-    st.subheader("Partial Plots")
+    st.markdown("### **Partial Plots**")
+
+    pp_col1, pp_col2 = st.beta_columns(2)
+
+    pp_col1.markdown("""
+        Partial dependence plots show the dependence between the target response and a set of input features of interest, marginalizing over the values of all other input features (the ‘complement’ features). 
+        Intuitively, we can interpret the partial dependence as the expected target response as a function of the input features of interest.
+    
+    """)
+
+    #pp_col2.plot(pp_plot)
+    #pp = plot_partial_dependence(model_train, X_test, ['age'])
+    ##pp_col2.pyplot(pp)
+
+    X_test_df = pd.DataFrame(X_test).rename(columns=feature_dict)
+
+    fig = plt.figure()
+    pdp_plot = plot_partial_dependence(model_train, features = [selected_feature], X = X_test_df)     
+    pdp_plot = fig.subplots_adjust()
+    pp_col2.pyplot(pdp_plot)
 
 
+    st.markdown("### **SHAP**")
 
-    st.subheader("SHAP")
+    shap_col1, shap_col2 = st.beta_columns(2)
 
-    shap_col1, shap_col2 = st.beta_columns((2, 2))
-
+    shap_col1.markdown("""
+        The goal of SHAP is to explain the prediction of an instance x by computing the contribution of each feature to the prediction. 
+        The SHAP explanation method computes Shapley values from coalitional game theory. The feature values of a data instance act as players in a coalition. 
+        Shapley values tell us how to fairly distribute the "payout" (= the prediction) among the features.
+    
+    """)
 
     explainer = shap.TreeExplainer(model)
     shap_values = explainer.shap_values(X_test)
