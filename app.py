@@ -10,13 +10,18 @@ from sklearn.metrics import confusion_matrix, accuracy_score
 from sklearn.inspection import plot_partial_dependence
 
 from xgboost import XGBClassifier
+from sklearn.ensemble import RandomForestClassifier
 
 import shap
 import eli5
 from eli5.sklearn import PermutationImportance
 
+#from partial_dependence import PartialDependenceExplainer
+
 #from pdpbox import pdp
 #import pdp
+from pdpbox import pdp, get_dataset, info_plots
+
 
 st.set_page_config(layout="wide", page_title='Explaining Heart Diseases ML Model')
 st.set_option('deprecation.showPyplotGlobalUse', False)
@@ -300,17 +305,16 @@ with explainable:
     X_test_df = pd.DataFrame(X_test).rename(columns=feature_dict)
 
     fig = plt.figure()
-    pdp_plot = plot_partial_dependence(model_train, features = [selected_feature], X = X_test_df) 
-    pdp_plot = fig.subplots_adjust()
-    pp_col2.pyplot(pdp_plot)
+    pdp_dist = pdp.pdp_isolate(model=model, dataset=X_test_df, model_features=features_list, feature=selected_feature)
+    pdp_dist = pdp.pdp_plot(pdp_dist, selected_feature)
+    pdp_dist = plt.show()
+    pp_col2.pyplot(pdp_dist, bbox_inches='tight')
 
 
     st.markdown("### **SHAP (SHapley Additive exPlanations) **")
 
-    shap_col1, shap_col2 = st.beta_columns(2)
-
-    shap_col1.markdown("""
-        **_How much a prediction was driven by the fact that a person's `max heart rate` is greater than 120?_**
+    st.markdown("""
+        **_How much a prediction was driven by the fact that a person's_ `max_heart_rate` _is greater than 120?_**
 
         A prediction can be explained by assuming that each feature value of the instance is a “player” in a game where the prediction is the payout. 
         [Shapley values](https://christophm.github.io/interpretable-ml-book/shapley.html) – a method from coalitional game theory – tells us how to fairly distribute the “payout” among the features.
@@ -320,6 +324,27 @@ with explainable:
 
     
     """)
+
+    importance_type = st.selectbox('Select the Person',range(0,len(X_test)),index=0)
+    
+    shap_col1, shap_col2 = st.beta_columns(2)
+
+    train_X2, val_X2, train_y2, val_y2, _ = train_test_split_data(df)
+    my_model = RandomForestClassifier(random_state=0).fit(train_X2, train_y2)
+    
+    sample_data_for_prediction = pd.DataFrame(X_test).rename(columns=feature_dict).iloc[5]
+
+    def patient_risk_factors(model, patient_data):
+        explainer = shap.TreeExplainer(model)
+        shap_values = explainer.shap_values(patient_data)
+        shap.initjs()
+        return shap.force_plot(explainer.expected_value[1], shap_values[1], patient_data, matplotlib=True, show=False)
+
+    shap_plt = patient_risk_factors(my_model, sample_data_for_prediction)
+    st.pyplot(shap_plt)
+    plt.clf()
+
+    
 
     explainer = shap.TreeExplainer(model)
     shap_values = explainer.shap_values(X_test)
@@ -331,20 +356,4 @@ with explainable:
     #feature_shap_plot = shap.force_plot(explainer.expected_value[1], shap_values2[1], X_test.iloc[1,:].astype(float)) 
     #st.pyplot(feature_shap_plot) 
 
-    from sklearn.ensemble import RandomForestClassifier
-
     
-    train_X2, val_X2, train_y2, val_y2, _ = train_test_split_data(df)
-    my_model = RandomForestClassifier(random_state=0).fit(train_X2, train_y2)
-    
-    sample_data_for_prediction = pd.DataFrame(X_test).rename(columns=feature_dict).iloc[1]
-
-    def patient_risk_factors(model, patient_data):
-        explainer = shap.TreeExplainer(model)
-        shap_values = explainer.shap_values(patient_data)
-        shap.initjs()
-        return shap.force_plot(explainer.expected_value[1], shap_values[1], patient_data, matplotlib=True, show=False)
-
-    shap_plt = patient_risk_factors(my_model, sample_data_for_prediction)
-    st.pyplot(shap_plt)
-    plt.clf()
