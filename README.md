@@ -6,7 +6,7 @@ Streamlit app repository for Explainable AI which predicts and explains the pres
 ---
 
 **Link to Application**
-- [Heroku Deployment Link](#)
+- [Heroku Deployment Link](https://explainable-ai-model-app.herokuapp.com)
 - [Streamlit - Direct Link](https://share.streamlit.io/rishuatgithub/explainable-ai-app/main/app.py)
 
 ---
