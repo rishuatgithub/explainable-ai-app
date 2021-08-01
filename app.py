@@ -1,13 +1,11 @@
 import streamlit as st
 import pandas as pd
 
-import matplotlib.pyplot as plt 
-#import plotly.express as px
+import matplotlib.pyplot as plt
 import plotly.graph_objects as go
 
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import confusion_matrix, accuracy_score
-from sklearn.inspection import plot_partial_dependence
 
 from xgboost import XGBClassifier
 from sklearn.ensemble import RandomForestClassifier
@@ -16,11 +14,7 @@ import shap
 import eli5
 from eli5.sklearn import PermutationImportance
 
-#from partial_dependence import PartialDependenceExplainer
-
-#from pdpbox import pdp
-#import pdp
-from pdpbox import pdp, get_dataset, info_plots
+from pdpbox import pdp
 
 
 st.set_page_config(layout="wide", page_title='Explaining Heart Diseases ML Model')
@@ -29,7 +23,6 @@ shap.initjs()
 
 header = st.beta_container()
 dataset = st.beta_container()
-#dataviz = st.beta_container()
 #features = st.beta_container()
 model = st.beta_container()
 explainable = st.beta_container()
@@ -65,7 +58,7 @@ def train_test_split_data(df):
     df = pd.get_dummies(data_catg, drop_first = True)
 
     X = df.drop("target", 1).values
-    y = df["target"].astype("int").values
+    y = df["target"].astype("float").values
 
     ## column is used for the charts below
     encoded_df_column_list = df.columns.drop('target')
@@ -96,8 +89,6 @@ with dataset:
 
     df = read_data()
 
-    #dataset_col1, dataset_col2 = st.beta_columns((2,1))
-    
     st.write(df.head())
 
     #dataset_col2.subheader("Total count of rows: ")
@@ -129,36 +120,6 @@ with dataset:
         Note: There are many feature engineering techniques that could be applied on this dataset. 
               For the purpose of this exercise, we will not deep dive into feature engineering other than encoding done above.
         """)
-
-
-#with dataviz:
-#    st.header("**Visualizing the dataset**")
-#    st.markdown("Before building the model, let us visualize the above dataset to understand the distribution a little better. ")
-
-#    features_list = df[['age','sex','cp']].columns
-#    selected_feature = st.selectbox('Feature Attributes',features_list)
-
-#    dataviz_col1, dataviz_col2 = st.beta_columns(2) 
-
-#    barviz_df = pd.DataFrame(df[[selected_feature,'target']].value_counts(), columns=['value'])
-#    barviz_df.reset_index(level=[selected_feature,'target'], inplace=True)
-#    barviz_df['target'] = barviz_df['target'].map({0:'Without Heart Disease', 1:'With Heart Disease'})
-
-#    fig = px.bar(barviz_df, y=selected_feature, facet_col="target", barmode="group")
-    
-#    dataviz_col1.plotly_chart(fig)
-
-#with features: 
-    #st.subheader("Preparing dataset before training")
-    #st.markdown("The dataset is having some features with **categorical** dataset. We will apply [dummy encoding](https://pandas.pydata.org/docs/reference/api/pandas.get_dummies.html) to convert the categorical data to binary features.")
-    #st.markdown("The list of categorical features are: cp, sex, exang, slope, thal, restecg, fbs. ")
-    
-    #st.markdown("After applying the dummy encoding scheme, the original dataset now looks like as below. Notice the new encoded features being added.")
-    #st.write(df.head())
-
-    #st.text("""
-    #    Note: There are many feature engineering techniques that could be applied on this dataset. 
-    #          For the purpose of this exercise, we will not deep dive into feature engineering other than small encoding done above.""")
 
 with model:
     st.header("**Model Training**")
@@ -236,7 +197,7 @@ with explainable:
     st.header("**Explaining the Model**")
     st.markdown("""
         In the above section, XGBoost model predicted some output score based on the heart disease prediction dataset. 
-        Based on the initial model parameters, a **F1 score** of approx. `88%` was acheived based on the validation/test data.
+        Based on the initial model parameters, a **F1 score** of `"""+str(round(f1_score*100,2))+"""%` was acheived based on the validation/test data.
         However, there are open questions that would easily come to mind:
 
         1. What features in the data did the model **think are most important**?
@@ -294,8 +255,8 @@ with explainable:
 
         In PDPs, the y-axis or the feature column predicts the **change in prediction** from what it would be predicted at the baseline or left-most value.
 
-        Let's look into one of the feature: `number_of_major_vessels`. With the increase in the number of vessels, the probability of having a heart diseases 
-        decreases.
+        Let's look into one of the feature: `number_of_major_vessels`. With the increase in the number of vessels, the model thinks 
+        the probability of having a heart diseases decreases.
 
         For feature: `max_heart_rate` the chance of having a heart disease increases with the increase in the heart rate.
 
@@ -318,42 +279,56 @@ with explainable:
 
         A prediction can be explained by assuming that each feature value of the instance is a “player” in a game where the prediction is the payout. 
         [Shapley values](https://christophm.github.io/interpretable-ml-book/shapley.html) – a method from coalitional game theory – tells us how to fairly distribute the “payout” among the features.
-        
         SHAP values interpret the impact of having a certain value for a given feature in comparison to the prediction we'd make if that feature took some baseline value.
 
+        The SHAP values provide two great advantages:
+
+        - **Global interpretability**: The SHAP values can show how much each predictor contributes, either positively or negatively, to the target variable. 
+            This is like the partial dependence plot but it is able to show the positive or negative relationship for each variable with the target.
+        - **Local interpretability**: Each observation gets its own set of SHAP values. This greatly increases its transparency. 
+                                We can explain why a case receives its prediction and the contributions of the predictors. 
+                                Traditional variable importance algorithms only show the results across the entire population but not on each individual case. 
+                                The local interpretability enables us to pinpoint and contrast the impacts of the factors.
 
     
     """)
-
-    importance_type = st.selectbox('Select the Person',range(0,len(X_test)),index=0)
-    
     shap_col1, shap_col2 = st.beta_columns(2)
 
-    train_X2, val_X2, train_y2, val_y2, _ = train_test_split_data(df)
-    my_model = RandomForestClassifier(random_state=0).fit(train_X2, train_y2)
-    
-    sample_data_for_prediction = pd.DataFrame(X_test).rename(columns=feature_dict).iloc[5]
+    shap_col1.markdown("""
+        The chart on the right hand side shows the indivisual feature contribution towards predicting the model's output.
 
-    def patient_risk_factors(model, patient_data):
+        If you select a `Person: 1` from the selection box, you could see a series of blue and red features contributing towards predicting the 
+        presenece of heart disease in that person. Based on the initial parameters of this model, the presence of heart disease is very low. 
+    
+    """)
+
+    select_person = shap_col2.selectbox('Select the Person',range(1,len(X_test)),index=1)
+    
+    ## shap person plot
+    select_person_row = pd.DataFrame(X_test).rename(columns=feature_dict).iloc[[select_person]]
+
+    def plot_force_shap_values(model, patient_data):
         explainer = shap.TreeExplainer(model)
         shap_values = explainer.shap_values(patient_data)
         shap.initjs()
-        return shap.force_plot(explainer.expected_value[1], shap_values[1], patient_data, matplotlib=True, show=False)
+        return shap.force_plot(explainer.expected_value, 
+                                shap_values, 
+                                patient_data, 
+                                matplotlib=True, 
+                                show=False, 
+                                feature_names = list(feature_dict.values()), 
+                                text_rotation=10)
 
-    shap_plt = patient_risk_factors(my_model, sample_data_for_prediction)
-    st.pyplot(shap_plt)
+    shap_plt = plot_force_shap_values(model, select_person_row.values)
+    shap_col2.pyplot(shap_plt)
     plt.clf()
 
     
-
+    ## summary plot
     explainer = shap.TreeExplainer(model)
     shap_values = explainer.shap_values(X_test)
-    #summary_plot = shap.summary_plot(shap_values, X_test, feature_names = list(feature_dict.values()), plot_type = "bar")
     summary_plot = shap.summary_plot(shap_values, X_test, feature_names = list(feature_dict.values()))
     shap_col2.pyplot(summary_plot)
 
-    #shap_values2 = explainer.shap_values(X_test.iloc[1,:].astype(float))
-    #feature_shap_plot = shap.force_plot(explainer.expected_value[1], shap_values2[1], X_test.iloc[1,:].astype(float)) 
-    #st.pyplot(feature_shap_plot) 
 
     

@@ -7,3 +7,4 @@ xgboost
 plotly
 eli5
 matplotlib
+pdpbox
