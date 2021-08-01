@@ -8,7 +8,6 @@ from sklearn.model_selection import train_test_split
 from sklearn.metrics import confusion_matrix, accuracy_score
 
 from xgboost import XGBClassifier
-from sklearn.ensemble import RandomForestClassifier
 
 import shap
 import eli5
@@ -23,7 +22,6 @@ shap.initjs()
 
 header = st.beta_container()
 dataset = st.beta_container()
-#features = st.beta_container()
 model = st.beta_container()
 explainable = st.beta_container()
 
@@ -68,9 +66,27 @@ def train_test_split_data(df):
     return X_train, X_test, y_train, y_test, encoded_df_column_list
 
 
+st.sidebar.markdown("""
+    **Author:** Rishu Shrivastava
+
+    **Last Published:** 01-Aug-2021
+
+    **Feature Detailed Description**: [Kaggle Heart Disease Dataset](https://www.kaggle.com/ronitf/heart-disease-uci)
+
+    **Codebase**: [Github Repo.: explainable-ai-app](https://github.com/rishuatgithub/explainable-ai-app)
+
+    **Report**: [Issues](https://github.com/rishuatgithub/explainable-ai-app/issues)
+
+    **References**:
+    - [Kaggle Explainable AI Course](https://www.kaggle.com/learn/machine-learning-explainability)
+    - [Interpretable Machine Learning](https://christophm.github.io/interpretable-ml-book/)
+    - [Kaggle Notebooks](https://www.kaggle.com/chingchunyeh/heart-disease-report)
+    
+""")
+
+
 with header:
     st.title("Explaining Heart Diseases ML Model")
-    #st.markdown("Author: Rishu Shrivastava")
     st.markdown("""
         Many people say machine learning models are **black boxes**, in the sense that they can make good predictions but you can't understand the logic behind those predictions. This statement is true in the sense that most data scientists don't know how to extract insights from models yet.")
         
@@ -91,27 +107,6 @@ with dataset:
 
     st.write(df.head())
 
-    #dataset_col2.subheader("Total count of rows: ")
-    #dataset_col2.write(df['age'].count())
-
-    #with dataset_col2.beta_expander('Features Description'):
-    #    st.markdown("""
-    #        * **age**: The Age of the person
-    #        * **sex**: The sex of the person (Male/Female)
-    #        * **cp**: The chest pain experienced (Value 1: typical angina, Value 2: atypical angina, Value 3: non-anginal pain, Value 4: asymptomatic)
-    #        * **thresbps**: The person's resting blood pressure (mm Hg on admission to the hospital)
-    #        * **chol**: The person's cholesterol measurement in mg/dl
-    #        * **fbs**: The person's fasting blood sugar (> 120 mg/dl, 1 = true; 0 = false)
-    #        * **restecg**: Resting electrocardiographic measurement (0 = normal, 1 = having ST-T wave abnormality, 2 = showing probable or definite left ventricular hypertrophy by Estes' criteria)
-    #        * **thalch**: The person's maximum heart rate achieved.
-    #        * **exang**: Exercise induced angina (1 = yes; 0 = no)
-    #        * **oldpeak**: ST depression induced by exercise relative to rest ('ST' relates to positions on the ECG plot.)
-    #        * **slope**: The slope of the peak exercise ST segment (Value 1: upsloping, Value 2: flat, Value 3: downsloping) 
-    #        * **ca**: Number of major vessels (0-3) colored by flourosopy 
-    #        * **thal**: A blood disorder called thalassemia (3 = normal; 6 = fixed defect; 7 = reversable defect)
-    #        * **target**: The final prediction value of either 0 (Not Heart Disease) or 1 (Heart Disease)
-    #    """)
-    
     st.markdown("""
         The dataset is having some features with **categorical** dataset. 
         We will apply [dummy encoding](https://pandas.pydata.org/docs/reference/api/pandas.get_dummies.html) technique to convert the categorical data to binary features.
@@ -237,7 +232,6 @@ with explainable:
     pi_col2.markdown(permutation_imp_chart.replace('\n',''),unsafe_allow_html=True)
 
     
-    
     st.markdown("### **Partial Dependence Plots**")
 
     pp_col1, pp_col2 = st.beta_columns(2)
@@ -292,17 +286,23 @@ with explainable:
 
     
     """)
-    shap_col1, shap_col2 = st.beta_columns(2)
+    shap_col1, shap_col2 = st.beta_columns((1.5,2))
 
     shap_col1.markdown("""
         The chart on the right hand side shows the indivisual feature contribution towards predicting the model's output.
 
-        If you select a `Person: 1` from the selection box, you could see a series of blue and red features contributing towards predicting the 
-        presenece of heart disease in that person. Based on the initial parameters of this model, the presence of heart disease is very low. 
+        If you select a `Person: 1` from the selection box, the model predicted `-2.74`, whereas the base value is `0.50`. 
+        Feature values causing increased predictions are in _pink_, and their visual size shows the magnitude of the feature's effect. 
+        Feature values decreasing the prediction are in blue. The biggest impact comes from `number_of_major_vessel` being `2`. 
+        As we found out in partial dependence plot, having more number of blood vessels in heart decreases the chance of having a heart related diseases.
+
+        However, if you interpret `Person: 2`, the model predicted a shap value of `+1.32` against the base value of `0.50`.
+        This person is at a high risk of having a heart disease and most contributing feature increasing the chance of this score are `sex_male` and 
+        `thalassemia_reversible_defect`. This prediction sounds good as being a male with thalassemia disease does increase the chance of heart disease.
     
     """)
 
-    select_person = shap_col2.selectbox('Select the Person',range(1,len(X_test)),index=1)
+    select_person = shap_col2.selectbox('Select the Person',range(1,len(X_test)),index=0)
     
     ## shap person plot
     select_person_row = pd.DataFrame(X_test).rename(columns=feature_dict).iloc[[select_person]]
@@ -323,12 +323,36 @@ with explainable:
     shap_col2.pyplot(shap_plt)
     plt.clf()
 
+
+    shap_col3, shap_col4 = st.beta_columns(2)
+
+    shap_col4.markdown("""
+        **SHAP Summary plot** provides an overall view of the feature contribution across a larger set of data. 
+        
+        The summary plot on the left hand side has many dots. Each dot has the following characteristics:
+        
+        - The Vertical location shows what feature it is depicting
+        - Color shows whether that feature was high or low for that row of the dataset
+        - Horizontal location shows whether the effect of that value caused a higher or lower prediction.
+
+        In our heart prediction model, `thalassemia_normal` does not quite contribute to the overall model prediction.
+        However, features like `age` might contribute to the increase in prediction _(more the age, more is the chances of having disease)_ on specific cases.
+        But on a birds-eye view across all the dataset, it doesn't quite play a significant role. 
+        The same would go for the `fasting_blood_sugar` and `cholestrol`. 
+
+        The use of SHAP plots does provides us with an overall understanding of the features contributions across a larger dataset.
+        This inturn helps in taking informative approach towards the feature engineering.
+
+    
+    
+    """)
     
     ## summary plot
     explainer = shap.TreeExplainer(model)
     shap_values = explainer.shap_values(X_test)
     summary_plot = shap.summary_plot(shap_values, X_test, feature_names = list(feature_dict.values()))
-    shap_col2.pyplot(summary_plot)
+    shap_col3.pyplot(summary_plot)
+    plt.clf()
 
 
     
