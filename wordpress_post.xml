@@ -1,0 +1,310 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<rss version="2.0"
+	xmlns:excerpt="http://wordpress.org/export/1.2/excerpt/"
+	xmlns:content="http://purl.org/rss/1.0/modules/content/"
+	xmlns:wfw="http://wellformedweb.org/commentAPI/"
+	xmlns:dc="http://purl.org/dc/elements/1.1/"
+	xmlns:wp="http://wordpress.org/export/1.2/"
+>
+<channel>
+	<title>Tech Spaghetti</title>
+	<link>https://tech-spaghetti.com</link>
+	<description>A Fusion of Data, AI, and Analytics</description>
+	<pubDate>Sun, 07 Jun 2026 13:00:00 +0000</pubDate>
+	<language>en-US</language>
+	<wp:wxr_version>1.2</wp:wxr_version>
+	<item>
+		<title>Demystifying the Black Box: A Hands-On Guide to Explainable AI (XAI)</title>
+		<link>https://tech-spaghetti.com/demystifying-the-black-box-explainable-ai/</link>
+		<pubDate>Sun, 07 Jun 2026 13:00:00 +0000</pubDate>
+		<dc:creator><![CDATA[Rishu Shrivastava]]></dc:creator>
+		<guid isPermaLink="false">https://tech-spaghetti.com/?p=9999</guid>
+		<description><![CDATA[Learn how to build and explain a heart disease prediction model using Explainable AI (XAI) tools like Permutation Importance, PDP, and SHAP.]]></description>
+		<content:encoded><![CDATA[<!-- wp:paragraph -->
+<p><em>Originally drafted for <a href="https://tech-spaghetti.com/">Tech Spaghetti</a></em></p>
+<!-- /wp:paragraph -->
+
+<!-- wp:heading {"level":2} -->
+<h2 class="wp-block-heading" id="tldr"><strong>TL;DR</strong></h2>
+<!-- /wp:heading -->
+
+<!-- wp:group {"style":{"color":{"background":"#f5f5f5"}},"layout":{"type":"flex","orientation":"vertical"}} -->
+<div class="wp-block-group has-background" style="background-color:#f5f5f5">
+<!-- wp:paragraph {"fontSize":"small"} -->
+<p class="has-small-font-size">🧠 <strong>Explainability is trust</strong> – High-performance models (like XGBoost) are often "black boxes." Explainable AI (XAI) peels back the layers to reveal <em>how</em> and <em>why</em> they make decisions.</p>
+<!-- /wp:paragraph -->
+
+<!-- wp:paragraph {"fontSize":"small"} -->
+<p class="has-small-font-size">🚀 <strong>Streamlit in action</strong> – We build and explain an interactive heart disease classifier, showing XAI in a clinical context. Try the live app here: <a href="https://rishuatgithub-explainable-ai-app-app-6wxqen.streamlit.app/">Heart Disease Explainable AI App</a>.</p>
+<!-- /wp:paragraph -->
+
+<!-- wp:paragraph {"fontSize":"small"} -->
+<p class="has-small-font-size">🧩 <strong>Feature importance (ELI5)</strong> – Permutation Importance identifies which patient attributes (e.g. major vessels, cholesterol) carry the most predictive weight.</p>
+<!-- /wp:paragraph -->
+
+<!-- wp:paragraph {"fontSize":"small"} -->
+<p class="has-small-font-size">📉 <strong>Partial Dependence (PDP)</strong> – Visualizes the global relationship between specific inputs (like max heart rate) and heart disease risk.</p>
+<!-- /wp:paragraph -->
+
+<!-- wp:paragraph {"fontSize":"small"} -->
+<p class="has-small-font-size">🔬 <strong>SHAP (Game Theory)</strong> – Provides both hyper-local explanations (why patient #1 is high-risk) and birds-eye global insights using coalition game theory.</p>
+<!-- /wp:paragraph -->
+</div>
+<!-- /wp:group -->
+
+<!-- wp:heading {"level":2} -->
+<h2 class="wp-block-heading" id="introduction"><strong>Introduction</strong></h2>
+<!-- /wp:heading -->
+
+<!-- wp:paragraph {"align":"justify"} -->
+<p class="has-text-align-justify">We are living in an era where Machine Learning models are making increasingly critical decisions. From approving credit cards to diagnosing life-threatening conditions, AI is driving automation at an unprecedented scale.</p>
+<!-- /wp:paragraph -->
+
+<!-- wp:paragraph {"align":"justify"} -->
+<p class="has-text-align-justify">But as models become more powerful—think XGBoost, Deep Neural Networks, and Large Language Models—they also become more complex. They transform into <strong>"black boxes"</strong>: systems where we feed inputs and receive highly accurate predictions, but have absolutely no visibility into the logic under the hood.</p>
+<!-- /wp:paragraph -->
+
+<!-- wp:paragraph {"align":"justify"} -->
+<p class="has-text-align-justify">In low-stakes scenarios (like movie recommendations), this opacity is acceptable. In high-stakes fields like healthcare, <strong>it is dangerous</strong>. A doctor cannot simply trust an AI that says, <em>"This patient has a 90% chance of heart disease,"</em> without asking <strong>why</strong>.</p>
+<!-- /wp:paragraph -->
+
+<!-- wp:paragraph {"align":"justify"} -->
+<p class="has-text-align-justify">This is where <strong>Explainable AI (XAI)</strong> steps in. XAI is the collection of tools and frameworks that make machine learning models transparent, interpretable, and accountable.</p>
+<!-- /wp:paragraph -->
+
+<!-- wp:paragraph {"align":"justify"} -->
+<p class="has-text-align-justify">To see this in action, we built an interactive <a href="https://rishuatgithub-explainable-ai-app-app-6wxqen.streamlit.app/">Heart Disease Explainable AI Streamlit App</a>. Let’s dive into how we can use three core pillars of explainability to dissect an XGBoost classifier trained on Cleveland heart disease data.</p>
+<!-- /wp:paragraph -->
+
+<!-- wp:quote -->
+<blockquote class="wp-block-quote">
+<p>"If algorithms meet explainability requirements, they provide a basis for justifying decisions, tracking and thereby verifying them, improving the algorithms, and exploring new facts."</p>
+</blockquote>
+<!-- /wp:quote -->
+
+<!-- wp:heading {"level":2} -->
+<h2 class="wp-block-heading" id="the-core-engine-xgboost-on-heart-disease-data"><strong>The Core Engine: XGBoost on Heart Disease Data</strong></h2>
+<!-- /wp:heading -->
+
+<!-- wp:paragraph {"align":"justify"} -->
+<p class="has-text-align-justify">Our application uses the popular <strong>Kaggle Heart Disease dataset</strong>, which contains 14 patient attributes, including age, sex, chest pain type, max heart rate, and the number of major vessels.</p>
+<!-- /wp:paragraph -->
+
+<!-- wp:paragraph {"align":"justify"} -->
+<p class="has-text-align-justify">We trained an <strong>XGBoost Classifier</strong> on this dataset. XGBoost is a decision-tree-based ensemble algorithm known for high accuracy but notorious for its non-linear, complex decision boundaries.</p>
+<!-- /wp:paragraph -->
+
+<!-- wp:paragraph {"align":"justify"} -->
+<p class="has-text-align-justify">Once trained, the model achieves strong classification metrics on validation data. But to transition this model from a research experiment into a trustworthy clinical tool, we must explain its predictions. We do this using three distinct techniques.</p>
+<!-- /wp:paragraph -->
+
+<!-- wp:heading {"level":2} -->
+<h2 class="wp-block-heading" id="pillar-1-permutation-importance-what-does-the-model-value"><strong>Pillar 1: Permutation Importance (What does the model value?)</strong></h2>
+<!-- /wp:heading -->
+
+<!-- wp:paragraph {"align":"justify"} -->
+<p class="has-text-align-justify">Before we look at individual patients, we want to know: <strong>what features does the model care about most across the entire dataset?</strong></p>
+<!-- /wp:paragraph -->
+
+<!-- wp:paragraph {"align":"justify"} -->
+<p class="has-text-align-justify">One of the fastest and most intuitive ways to calculate this is <strong>Permutation Importance</strong> (rendered in our app via the <code>eli5</code> library).</p>
+<!-- /wp:paragraph -->
+
+<!-- wp:heading {"level":3} -->
+<h3 class="wp-block-heading"><strong>How it works:</strong></h3>
+<!-- /wp:heading -->
+
+<!-- wp:list {"ordered":true} -->
+<ol>
+<li>We measure the model's accuracy on a test dataset.</li>
+<li>We select a single feature (e.g., <code>cholestrol</code>) and <strong>shuffle (permute)</strong> its values across the test rows, breaking the relationship between that feature and the target outcome.</li>
+<li>We re-measure the model's accuracy. If the accuracy drops significantly, it means the model relied heavily on that feature. If the accuracy barely changes, the feature is relatively unimportant.</li>
+</ol>
+<!-- /wp:list -->
+
+<!-- wp:preformatted -->
+<pre class="wp-block-preformatted">from eli5.sklearn import PermutationImportance
+
+# Fit Permutation Importance on test data
+perm = PermutationImportance(model, random_state=1).fit(X_test, y_test)</pre>
+<!-- /wp:preformatted -->
+
+<!-- wp:paragraph {"align":"justify"} -->
+<p class="has-text-align-justify">In our heart prediction model, the top 3 most important features identified are <code>number_of_major_vessels</code>, <code>cholestrol</code>, and <code>st_depression_rt_rest</code>.</p>
+<!-- /wp:paragraph -->
+
+<!-- wp:paragraph {"align":"justify"} -->
+<p class="has-text-align-justify">This aligns perfectly with clinical literature: the number of clear major blood vessels and high cholesterol levels are leading physiological indicators of cardiovascular health.</p>
+<!-- /wp:paragraph -->
+
+<!-- wp:heading {"level":2} -->
+<h2 class="wp-block-heading" id="pillar-2-partial-dependence-plots-how-do-features-affect-predictions"><strong>Pillar 2: Partial Dependence Plots (How do features affect predictions?)</strong></h2>
+<!-- /wp:heading -->
+
+<!-- wp:paragraph {"align":"justify"} -->
+<p class="has-text-align-justify">While Permutation Importance tells us <em>which</em> features are important, it doesn't tell us the <em>direction</em> of the relationship. Does a higher heart rate increase or decrease the risk of heart disease?</p>
+<!-- /wp:paragraph -->
+
+<!-- wp:paragraph {"align":"justify"} -->
+<p class="has-text-align-justify">To answer this, we use <strong>Partial Dependence Plots (PDP)</strong> (implemented using <code>scikit-learn</code>'s <code>PartialDependenceDisplay</code>).</p>
+<!-- /wp:paragraph -->
+
+<!-- wp:heading {"level":3} -->
+<h3 class="wp-block-heading"><strong>How it works:</strong></h3>
+<!-- /wp:heading -->
+
+<!-- wp:paragraph {"align":"justify"} -->
+<p class="has-text-align-justify">PDPs isolate a single feature and show its marginal effect on the predicted outcome. The algorithm takes the dataset, forces the target feature to a specific value for all rows (e.g., setting every patient's <code>max_heart_rate</code> to 140), and calculates the average predicted probability. It repeats this across a grid of values.</p>
+<!-- /wp:paragraph -->
+
+<!-- wp:paragraph {"align":"justify"} -->
+<p class="has-text-align-justify">In our Streamlit app, we render these plots dynamically using matplotlib:</p>
+<!-- /wp:paragraph -->
+
+<!-- wp:preformatted -->
+<pre class="wp-block-preformatted">from sklearn.inspection import PartialDependenceDisplay
+import matplotlib.pyplot as plt
+
+fig, ax = plt.subplots(figsize=(6, 4), dpi=100)
+pdp_iso = PartialDependenceDisplay.from_estimator(
+    model,
+    X_test,
+    features=[feature_index],
+    feature_names=list(features_list),
+    ax=ax
+)</pre>
+<!-- /wp:preformatted -->
+
+<!-- wp:heading {"level":3} -->
+<h3 class="wp-block-heading"><strong>Clinical Insights from PDP:</strong></h3>
+<!-- /wp:heading -->
+
+<!-- wp:list -->
+<ul>
+<li><strong><code>max_heart_rate</code>:</strong> As the patient's maximum heart rate increases, the PDP line rises, indicating a clear increase in heart disease probability.</li>
+<li><strong><code>number_of_major_vessels</code>:</strong> Conversely, as the number of clear major vessels increases from 0 to 3, the risk curve drops sharply. More clear vessels mean better blood flow, reducing cardiovascular risk.</li>
+</ul>
+<!-- /wp:list -->
+
+<!-- wp:heading {"level":2} -->
+<h2 class="wp-block-heading" id="pillar-3-shap-values-local-global-explanations"><strong>Pillar 3: SHAP Values (Local &amp; Global Explanations)</strong></h2>
+<!-- /wp:heading -->
+
+<!-- wp:paragraph {"align":"justify"} -->
+<p class="has-text-align-justify">If a doctor is sitting with a specific patient, general dataset-level statistics aren't enough. They need to know: <strong>why did the AI predict that <em>this specific patient</em> has a high risk of heart disease?</strong></p>
+<!-- /wp:paragraph -->
+
+<!-- wp:paragraph {"align":"justify"} -->
+<p class="has-text-align-justify">For local, patient-level explanations, we use <strong>SHAP (SHapley Additive exPlanations)</strong>.</p>
+<!-- /wp:paragraph -->
+
+<!-- wp:paragraph {"align":"justify"} -->
+<p class="has-text-align-justify">Based on <strong>coalition game theory</strong>, SHAP treats each feature value of a patient as a "player" in a game, where the model's prediction is the payout. It calculates the fair contribution of each feature to the difference between the actual prediction and the average baseline prediction.</p>
+<!-- /wp:paragraph -->
+
+<!-- wp:preformatted -->
+<pre class="wp-block-preformatted">import shap
+
+explainer = shap.TreeExplainer(model)
+shap_values = explainer.shap_values(patient_data)</pre>
+<!-- /wp:preformatted -->
+
+<!-- wp:heading {"level":3} -->
+<h3 class="wp-block-heading"><strong>1. Local Interpretability (Individual Patients)</strong></h3>
+<!-- /wp:heading -->
+
+<!-- wp:paragraph {"align":"justify"} -->
+<p class="has-text-align-justify">In our app, you can select individual patients and see their <strong>Force Plots</strong>:</p>
+<!-- /wp:paragraph -->
+
+<!-- wp:list -->
+<ul>
+<li>Features that push the risk higher are shown in <strong>red/pink</strong>.</li>
+<li>Features that pull the risk lower are shown in <strong>blue</strong>.</li>
+</ul>
+<!-- /wp:list -->
+
+<!-- wp:paragraph {"align":"justify"} -->
+<p class="has-text-align-justify">For example, for a high-risk patient, SHAP highlights that being a male (<code>sex_male = 1</code>) and having a thalassemia defect (<code>thalassemia_reversible_defect = 1</code>) are the dominant drivers pushing their score above the baseline.</p>
+<!-- /wp:paragraph -->
+
+<!-- wp:heading {"level":3} -->
+<h3 class="wp-block-heading"><strong>2. Global Interpretability (Summary Plot)</strong></h3>
+<!-- /wp:heading -->
+
+<!-- wp:paragraph {"align":"justify"} -->
+<p class="has-text-align-justify">SHAP also provides a <strong>Summary Plot</strong> that combines local explanations across all patients. Each point on the plot represents a single patient:</p>
+<!-- /wp:paragraph -->
+
+<!-- wp:list -->
+<ul>
+<li><strong>Y-axis:</strong> Features ordered by overall impact.</li>
+<li><strong>X-axis:</strong> SHAP value (impact on model output).</li>
+<li><strong>Color:</strong> High feature values (red) vs. low feature values (blue).</li>
+</ul>
+<!-- /wp:list -->
+
+<!-- wp:paragraph {"align":"justify"} -->
+<p class="has-text-align-justify">This single chart instantly reveals that high values of thalassemia defects (red dots on the right side) push predictions higher, while having more major vessels (red dots on the left side) pulls predictions down.</p>
+<!-- /wp:paragraph -->
+
+<!-- wp:heading {"level":2} -->
+<h2 class="wp-block-heading" id="closing-thoughts-trust-as-the-cornerstone-of-enterprise-ai"><strong>Closing Thoughts: Trust as the Cornerstone of Enterprise AI</strong></h2>
+<!-- /wp:heading -->
+
+<!-- wp:paragraph -->
+<p>In the excitement of the machine learning revolution, it is easy to get caught up in optimizing metrics like accuracy, precision, and F1 scores. But as AI transitions from sandbox experiments to real-world deployment, we are realizing that <strong>trust is the ultimate metric.</strong></p>
+<!-- /wp:paragraph -->
+
+<!-- wp:paragraph -->
+<p>Why is trust so critical? Because in high-stakes, safety-critical sectors—such as healthcare, defense, finance, and autonomous systems—the cost of a mistake is not just a lost click or a minor inconvenience; it can mean financial ruin, legal liability, or the loss of human lives.</p>
+<!-- /wp:paragraph -->
+
+<!-- wp:paragraph -->
+<p>Consider these critical domains:</p>
+<!-- /wp:paragraph -->
+
+<!-- wp:list -->
+<ul>
+<li><strong>Healthcare &amp; Medicine:</strong> A physician cannot ethically act on a recommendation from an AI without understanding the clinical reasoning behind it. If a model predicts a high probability of heart disease, the doctor needs to know if that decision was driven by an elevated heart rate or a reversible thalassemia defect. Explainability bridges the gap between machine intelligence and clinical intuition, ensuring that AI acts as a collaborative partner to the physician, rather than a mysterious oracle.</li>
+<li><strong>Finance &amp; Credit:</strong> Under regulatory frameworks like the Equal Credit Opportunity Act (ECOA) or GDPR, organizations are legally mandated to provide a "right to explanation" for automated decisions. If a customer is denied a loan or flagged for fraud, the institution must be able to justify that decision without attributing it to biased or discriminatory factors. XAI tools like SHAP make these decisions auditable and legally compliant.</li>
+<li><strong>Defense &amp; Public Safety:</strong> In mission-critical defense operations or autonomous driving, operators must understand the boundaries of the model's competence. Knowing <em>when</em> a model is likely to fail, or <em>why</em> it classified an object in a certain way, prevents catastrophic errors and builds situational awareness.</li>
+</ul>
+<!-- /wp:list -->
+
+<!-- wp:paragraph -->
+<p>Ultimately, Explainable AI (XAI) is not just about troubleshooting models or satisfying regulatory tick-boxes. It is about <strong>building a bridge of shared accountability.</strong> By combining Streamlit’s interactive interface with XAI libraries like <code>shap</code> and <code>eli5</code>, we can transform a complex black-box XGBoost model into an interactive, transparent advisor. When humans and machines can speak the same language of reasoning, we unlock the true potential of responsible, trustworthy AI.</p>
+<!-- /wp:paragraph -->
+
+<!-- wp:paragraph -->
+<p>Explore the codebase and test the application yourself:</p>
+<!-- /wp:paragraph -->
+
+<!-- wp:list -->
+<ul>
+<li><strong>Live App:</strong> <a href="https://rishuatgithub-explainable-ai-app-app-6wxqen.streamlit.app/">Streamlit Deployment</a></li>
+<li><strong>Github Repository:</strong> <a href="https://github.com/rishuatgithub/explainable-ai-app">explainable-ai-app</a></li>
+</ul>
+<!-- /wp:list -->]]></content:encoded>
+		<excerpt:encoded><![CDATA[Explainable AI (XAI) peels back the layers of black-box models to reveal how and why they make decisions. In this post, we build and dissect an interactive heart disease prediction app in Streamlit using XGBoost, ELI5, and SHAP.]]></excerpt:encoded>
+		<wp:post_id>9999</wp:post_id>
+		<wp:post_date><![CDATA[2026-06-07 18:30:00]]></wp:post_date>
+		<wp:post_date_gmt><![CDATA[2026-06-07 13:00:00]]></wp:post_date_gmt>
+		<wp:comment_status><![CDATA[open]]></wp:comment_status>
+		<wp:ping_status><![CDATA[open]]></wp:ping_status>
+		<wp:post_name><![CDATA[demystifying-the-black-box-explainable-ai]]></wp:post_name>
+		<wp:status><![CDATA[draft]]></wp:status>
+		<wp:post_parent>0</wp:post_parent>
+		<wp:menu_order>0</wp:menu_order>
+		<wp:post_type><![CDATA[post]]></wp:post_type>
+		<wp:post_password><![CDATA[]]></wp:post_password>
+		<wp:is_sticky>0</wp:is_sticky>
+		<category domain="category" nicename="ai-ml"><![CDATA[AI & ML]]></category>
+		<category domain="category" nicename="responsible-ai"><![CDATA[Responsible AI]]></category>
+		<category domain="post_tag" nicename="explainable-ai"><![CDATA[Explainable AI]]></category>
+		<category domain="post_tag" nicename="shap"><![CDATA[SHAP]]></category>
+		<category domain="post_tag" nicename="xgboost"><![CDATA[XGBoost]]></category>
+		<category domain="post_tag" nicename="streamlit"><![CDATA[Streamlit]]></category>
+	</item>
+</channel>
+</rss>
