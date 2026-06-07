@@ -1,11 +1,12 @@
 pandas
-streamlit==1.26.0
-scikit-learn==1.3.0
+streamlit
+scikit-learn
 watchdog
 shap
 xgboost==1.7.6
 plotly
 eli5
 matplotlib
-pdpbox==0.3.0
+PDPbox==0.3.0
 imbalanced-learn
+ipython

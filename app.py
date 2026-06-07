@@ -1,22 +1,30 @@
 import streamlit as st
 import pandas as pd
-
 import matplotlib.pyplot as plt
 import plotly.graph_objects as go
 
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import confusion_matrix, accuracy_score
+from sklearn.inspection import PartialDependenceDisplay
 
 from xgboost import XGBClassifier
+
+# Monkey patch XGBClassifier.__sklearn_tags__ to support scikit-learn 1.6+ tag API
+# (XGBoost 1.7.6 doesn't properly place ClassifierMixin before BaseEstimator in MRO)
+def xgb_sklearn_tags(self):
+    tags = super(XGBClassifier, self).__sklearn_tags__()
+    tags.estimator_type = "classifier"
+    return tags
+
+XGBClassifier.__sklearn_tags__ = xgb_sklearn_tags
 
 import shap
 import eli5
 from eli5.sklearn import PermutationImportance
 
-from pdpbox import pdp
+from pdpbox.pdp import PDPIsolate
 
-st.set_page_config(layout="wide", page_title='Explaining Heart Diseases ML Model')
-st.set_option('deprecation.showPyplotGlobalUse', False)
+st.set_page_config(layout="wide", page_title='Explaining Heart Diseases using ML Model')
 shap.initjs()
 
 header = st.container()
@@ -25,7 +33,7 @@ model = st.container()
 explainable = st.container()
 
 
-@st.cache_data(persist="disk")
+@st.cache_data
 def read_data():
     """
         Read the dataset
@@ -40,7 +48,7 @@ def read_data():
     return data
 
 
-@st.cache_data(persist="disk")
+@st.cache_data
 def train_test_split_data(df):
     """
         One hot encode the dataframe and return the train/test split
@@ -137,7 +145,8 @@ with model:
                           learning_rate=model_learning_rate,
                           n_estimators=model_estimators,
                           use_label_encoder=False,
-                          #enable_categorical=True,
+                          tree_method='hist',
+                          enable_categorical=True,
                           n_jobs=1)
 
     eval_set = [(X_train, y_train), (X_test, y_test)]
@@ -262,17 +271,22 @@ with explainable:
         For feature: `max_heart_rate` the chance of having a heart disease increases with the increase in the heart 
         rate. """)
 
-    X_test_df = pd.DataFrame(X_test).rename(columns=feature_dict)
+    feature_index = list(features_list).index(selected_feature)
 
-    fig = plt.figure()
-    #pdp_dist = pdp.PDPIsolate(model=model,
-    #                          df=X_test_df,
-    #                          model_features=features_list,
-     #                         feature_name=selected_feature,
-     #                         feature=selected_feature)
-    #pdp_dist = pdp.plot(pdp_dist, selected_feature)
-    #pdp_dist = plt.show()
-    #pp_col2.pyplot(pdp_dist, bbox_inches='tight')
+    fig, ax = plt.subplots(figsize=(6, 4), dpi=100)
+    pdp_iso = PartialDependenceDisplay.from_estimator(
+        model,
+        X_test,
+        features=[feature_index],
+        feature_names=list(features_list),
+        kind="average",
+        grid_resolution=20,
+        centered=False,
+        ax=ax)
+
+    plt.tight_layout()
+    pp_col2.pyplot(fig, bbox_inches='tight')
+    plt.clf()
 
     st.markdown("### **SHAP (SHapley Additive exPlanations)** ")
 
@@ -296,7 +310,7 @@ with explainable:
         Traditional variable importance algorithms only show the results across the entire population but not on each 
         individual case. The local interpretability enables us to pinpoint and contrast the impacts of the factors.
     """)
-    
+
     shap_col1, shap_col2 = st.columns((1.5, 2))
 
     shap_col1.markdown("""The chart on the right hand side shows the individual feature contribution towards 
@@ -359,8 +373,9 @@ with explainable:
     """)
 
     # summary plot
+    plt.figure()
     explainer = shap.TreeExplainer(model)
     shap_values = explainer.shap_values(X_test)
-    summary_plot = shap.summary_plot(shap_values, X_test, feature_names=list(feature_dict.values()))
-    shap_col3.pyplot(summary_plot)
+    shap.summary_plot(shap_values, X_test, feature_names=list(feature_dict.values()), show=False)
+    shap_col3.pyplot(plt.gcf())
     plt.clf()
