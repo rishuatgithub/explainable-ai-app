@@ -9,7 +9,6 @@ from sklearn.inspection import PartialDependenceDisplay
 
 from xgboost import XGBClassifier
 
-
 # Monkey patch XGBClassifier.__sklearn_tags__ to support scikit-learn 1.6+ tag API
 # (XGBoost 1.7.6 doesn't properly place ClassifierMixin before BaseEstimator in MRO)
 def xgb_sklearn_tags(self):
@@ -17,12 +16,13 @@ def xgb_sklearn_tags(self):
     tags.estimator_type = "classifier"
     return tags
 
-
 XGBClassifier.__sklearn_tags__ = xgb_sklearn_tags
 
 import shap
 import eli5
 from eli5.sklearn import PermutationImportance
+
+from pdpbox.pdp import PDPIsolate
 
 st.set_page_config(layout="wide", page_title='Explaining Heart Diseases using ML Model')
 shap.initjs()
